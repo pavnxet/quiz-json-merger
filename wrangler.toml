@@ -1,0 +1,10 @@
+name = "quiz-json-merger"
+main = "src/index.js"
+compatibility_date = "2023-01-01"
+
+# [vars]
+# TELEGRAM_WEBHOOK_URL = "https://jsonmerge.pavneet1804.workers.dev/webhook"
+
+# [[kv_namespaces]]
+# binding = "PENDING_FILES"
+# id = "your_kv_namespace_id"
