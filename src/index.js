@@ -411,10 +411,17 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
     .drop-zone p{margin:.25rem 0}.drop-zone .hint{color:#6b778c;font-size:.9rem}
     .file-list-header{display:flex;justify-content:space-between;align-items:center;margin-top:.75rem}
     .clear-btn{background:none;border:none;color:var(--danger);cursor:pointer;font-size:.85rem;font-weight:500;padding:.25rem .5rem;border-radius:4px}
-    .clear-btn:hover{background:#ffeae6}
-    .file-list{list-style:none;padding:0;margin:.5rem 0 0;max-height:180px;overflow-y:auto}
-    .file-list li{background:#f4f5f7;padding:.5rem .75rem;margin-bottom:.4rem;border-radius:6px;font-size:.9rem;display:flex;justify-content:space-between;align-items:center;border-left:3px solid var(--primary)}
-    .file-list .size{color:#6b778c;font-size:.8rem}
+    .file-list{list-style:none;padding:0;margin:.5rem 0 0;max-height:220px;overflow-y:auto}
+    .file-list li{background:#f4f5f7;padding:.4rem .6rem;margin-bottom:.4rem;border-radius:6px;font-size:.88rem;display:flex;justify-content:space-between;align-items:center;border-left:3px solid var(--primary);cursor:grab;transition:background .15s}
+    .file-list li.dragging{opacity:.4;background:#dfe1e6}
+    .file-list li.drag-over{border-top:2px solid var(--primary)}
+    .file-meta{display:flex;align-items:center;gap:.4rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:65%}
+    .file-actions{display:flex;align-items:center;gap:.25rem}
+    .file-actions button{margin:0;padding:.2rem .4rem;font-size:.75rem;background:#ebecf0;color:#172b4d;border-radius:4px;width:auto;line-height:1}
+    .file-actions button:hover{background:#dfe1e6}
+    .file-actions button.del-btn{color:var(--danger)}
+    .file-actions button.del-btn:hover{background:#ffeae6}
+    .file-list .size{color:#6b778c;font-size:.78rem;margin-right:.25rem}
     .toggle-box{background:#f0f7ff;border:1px solid #b3d4ff;border-radius:8px;padding:.75rem 1rem;margin-top:1.25rem;display:flex;align-items:flex-start;gap:.75rem;cursor:pointer}
     .toggle-box input[type=checkbox]{width:1.2rem;height:1.2rem;margin-top:.15rem;accent-color:var(--primary);cursor:pointer}
     .toggle-content{flex:1}
@@ -475,16 +482,108 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
   <script>
     const dropZone=document.getElementById('drop-zone'),fileInput=document.getElementById('files'),fileList=document.getElementById('file-list'),fileCount=document.getElementById('file-count'),clearBtn=document.getElementById('clear-btn'),form=document.getElementById('mergeForm'),btn=document.getElementById('submitBtn'),status=document.getElementById('status'),summary=document.getElementById('summary'),summaryList=document.getElementById('summary-list'),totalCount=document.getElementById('total-count'),totalPassages=document.getElementById('total-passages'),passagesWrap=document.getElementById('passages-badge-wrap'),modeBadge=document.getElementById('mode-badge');
     let selectedFiles=[];
+    let dragSrcIndex=null;
     ['dragenter','dragover','dragleave','drop'].forEach(e=>dropZone.addEventListener(e,ev=>{ev.preventDefault();ev.stopPropagation()}));
     ['dragenter','dragover'].forEach(e=>dropZone.addEventListener(e,()=>dropZone.classList.add('dragover')));
     ['dragleave','drop'].forEach(e=>dropZone.addEventListener(e,()=>dropZone.classList.remove('dragover')));
     dropZone.addEventListener('click',()=>fileInput.click());
-    function handleFiles(newFiles){if(!newFiles.length)return;const existing=new Set(selectedFiles.map(f=>f.name));const unique=Array.from(newFiles).filter(f=>!existing.has(f.name));selectedFiles.push(...unique);const dt=new DataTransfer();selectedFiles.forEach(f=>dt.items.add(f));fileInput.files=dt.files;renderList(selectedFiles)}
+    function handleFiles(newFiles){
+      if(!newFiles.length)return;
+      const existing=new Set(selectedFiles.map(f=>f.name));
+      const unique=Array.from(newFiles).filter(f=>!existing.has(f.name));
+      selectedFiles.push(...unique);
+      renderList();
+    }
     dropZone.addEventListener('drop',e=>handleFiles(e.dataTransfer.files));
-    fileInput.addEventListener('change',e=>handleFiles(e.target.files));
-    function renderList(files){fileList.innerHTML='';fileCount.textContent=\`\${files.length} file\${files.length!==1?'s':''} selected\`;clearBtn.style.display=files.length?'block':'none';files.forEach(f=>{const li=document.createElement('li');li.innerHTML=\`<span>\${f.name.endsWith('.html')||f.name.endsWith('.htm')?'🌐':'📄'} \${f.name}</span><span class="size">\${(f.size/1024).toFixed(1)} KB</span>\`;fileList.appendChild(li)})}
-    clearBtn.addEventListener('click',()=>{selectedFiles=[];fileInput.value='';renderList([]);summary.style.display='none'});
-    form.addEventListener('submit',async e=>{e.preventDefault();if(!selectedFiles.length){status.className='error';status.textContent='❌ Select at least one file.';status.style.display='block';return}const fn=document.getElementById('filename').value.trim();const out=fn.endsWith('.json')?fn:fn+'.json';btn.disabled=true;btn.textContent='Processing...';status.style.display='none';summary.style.display='none';try{const fd=new FormData(form);const res=await fetch('/upload',{method:'POST',body:fd});if(!res.ok)throw new Error(await res.text()||'Merge failed');const h=res.headers.get('X-Merge-Stats');if(h){const s=JSON.parse(h);summaryList.innerHTML='';s.files.forEach(f=>{const li=document.createElement('li');li.textContent=\`\${f.file}: \${f.count} questions\${f.passages?' ('+f.passages+' passages)':''}\`;summaryList.appendChild(li)});totalCount.textContent=s.total;if(s.totalPassages>0){totalPassages.textContent=s.totalPassages;passagesWrap.style.display='inline-block'}else{passagesWrap.style.display='none'}modeBadge.textContent=s.isStandard?'v1.0 Schema Mode':'Raw Array Mode';modeBadge.style.background=s.isStandard?'#0052cc':'#505f79';summary.style.display='block'}const blob=await res.blob();const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=out;document.body.appendChild(a);a.click();URL.revokeObjectURL(u);document.body.removeChild(a);status.className='success';status.textContent='✅ Merged & downloaded!'}catch(err){status.className='error';status.textContent=\`❌ \${err.message}\`}finally{status.style.display='block';btn.disabled=false;btn.textContent='Upload & Merge'}});
+    fileInput.addEventListener('change',e=>{handleFiles(e.target.files);fileInput.value='';});
+    window.moveFile=function(from,to){
+      if(to<0||to>=selectedFiles.length)return;
+      const [item]=selectedFiles.splice(from,1);
+      selectedFiles.splice(to,0,item);
+      renderList();
+    };
+    window.removeFile=function(index){
+      selectedFiles.splice(index,1);
+      renderList();
+      if(!selectedFiles.length)summary.style.display='none';
+    };
+    function renderList(){
+      fileList.innerHTML='';
+      fileCount.textContent=\`\${selectedFiles.length} file\${selectedFiles.length!==1?'s':''} selected\`;
+      clearBtn.style.display=selectedFiles.length?'block':'none';
+      selectedFiles.forEach((f,idx)=>{
+        const li=document.createElement('li');
+        li.draggable=true;
+        li.dataset.index=idx;
+        const icon=f.name.endsWith('.html')||f.name.endsWith('.htm')?'🌐':'📄';
+        li.innerHTML=\`
+          <div class="file-meta" title="\${f.name}">
+            <span style="color:#6b778c;cursor:grab">⠿</span>
+            <span>\${icon} <strong>\${idx+1}.</strong> \${f.name}</span>
+          </div>
+          <div class="file-actions">
+            <span class="size">\${(f.size/1024).toFixed(1)} KB</span>
+            <button type="button" title="Move Up" \${idx===0?'disabled style="opacity:.3"':''} onclick="moveFile(\${idx},\${idx-1})">↑</button>
+            <button type="button" title="Move Down" \${idx===selectedFiles.length-1?'disabled style="opacity:.3"':''} onclick="moveFile(\${idx},\${idx+1})">↓</button>
+            <button type="button" class="del-btn" title="Remove" onclick="removeFile(\${idx})">✕</button>
+          </div>
+        \`;
+        li.addEventListener('dragstart',e=>{dragSrcIndex=idx;li.classList.add('dragging');e.dataTransfer.effectAllowed='move'});
+        li.addEventListener('dragend',()=>li.classList.remove('dragging'));
+        li.addEventListener('dragover',e=>{e.preventDefault();li.classList.add('drag-over')});
+        li.addEventListener('dragleave',()=>li.classList.remove('drag-over'));
+        li.addEventListener('drop',e=>{
+          e.preventDefault();
+          li.classList.remove('drag-over');
+          if(dragSrcIndex!==null&&dragSrcIndex!==idx){
+            window.moveFile(dragSrcIndex,idx);
+          }
+        });
+        fileList.appendChild(li);
+      });
+    }
+    clearBtn.addEventListener('click',()=>{selectedFiles=[];fileInput.value='';renderList();summary.style.display='none'});
+    form.addEventListener('submit',async e=>{
+      e.preventDefault();
+      if(!selectedFiles.length){status.className='error';status.textContent='❌ Select at least one file.';status.style.display='block';return}
+      const fn=document.getElementById('filename').value.trim();
+      const out=fn.endsWith('.json')?fn:fn+'.json';
+      btn.disabled=true;btn.textContent='Processing...';
+      status.style.display='none';summary.style.display='none';
+      try{
+        const fd=new FormData();
+        selectedFiles.forEach(f=>fd.append('files',f));
+        fd.append('filename',fn);
+        if(document.getElementById('compiler_mode').checked) fd.append('compiler_mode','1');
+        const res=await fetch('/upload',{method:'POST',body:fd});
+        if(!res.ok)throw new Error(await res.text()||'Merge failed');
+        const h=res.headers.get('X-Merge-Stats');
+        if(h){
+          const s=JSON.parse(h);
+          summaryList.innerHTML='';
+          s.files.forEach(f=>{
+            const li=document.createElement('li');
+            li.textContent=\`\${f.file}: \${f.count} questions\${f.passages?' ('+f.passages+' passages)':''}\`;
+            summaryList.appendChild(li);
+          });
+          totalCount.textContent=s.total;
+          if(s.totalPassages>0){totalPassages.textContent=s.totalPassages;passagesWrap.style.display='inline-block'}else{passagesWrap.style.display='none'}
+          modeBadge.textContent=s.isStandard?'v1.0 Schema Mode':'Raw Array Mode';
+          modeBadge.style.background=s.isStandard?'#0052cc':'#505f79';
+          summary.style.display='block';
+        }
+        const blob=await res.blob();
+        const u=URL.createObjectURL(blob);
+        const a=document.createElement('a');
+        a.href=u;a.download=out;document.body.appendChild(a);a.click();
+        URL.revokeObjectURL(u);document.body.removeChild(a);
+        status.className='success';status.textContent='✅ Merged in selected order & downloaded!';
+      }catch(err){
+        status.className='error';status.textContent=\`❌ \${err.message}\`;
+      }finally{
+        status.style.display='block';btn.disabled=false;btn.textContent='Upload & Merge';
+      }
+    });
     if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js').catch(console.error);
   </script>
 </body>
