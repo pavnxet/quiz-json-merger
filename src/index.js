@@ -480,9 +480,10 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
     <div class="pwa-note">💡 Install as PWA for offline access & mobile home screen</div>
   </div>
   <script>
-    const dropZone=document.getElementById('drop-zone'),fileInput=document.getElementById('files'),fileList=document.getElementById('file-list'),fileCount=document.getElementById('file-count'),clearBtn=document.getElementById('clear-btn'),form=document.getElementById('mergeForm'),btn=document.getElementById('submitBtn'),status=document.getElementById('status'),summary=document.getElementById('summary'),summaryList=document.getElementById('summary-list'),totalCount=document.getElementById('total-count'),totalPassages=document.getElementById('total-passages'),passagesWrap=document.getElementById('passages-badge-wrap'),modeBadge=document.getElementById('mode-badge');
+    const dropZone=document.getElementById('drop-zone'),fileInput=document.getElementById('files'),fileList=document.getElementById('file-list'),fileCount=document.getElementById('file-count'),clearBtn=document.getElementById('clear-btn'),filenameInput=document.getElementById('filename'),form=document.getElementById('mergeForm'),btn=document.getElementById('submitBtn'),status=document.getElementById('status'),summary=document.getElementById('summary'),summaryList=document.getElementById('summary-list'),totalCount=document.getElementById('total-count'),totalPassages=document.getElementById('total-passages'),passagesWrap=document.getElementById('passages-badge-wrap'),modeBadge=document.getElementById('mode-badge');
     let selectedFiles=[];
     let dragSrcIndex=null;
+    filenameInput.addEventListener('input',()=>filenameInput.dataset.manual='1');
     ['dragenter','dragover','dragleave','drop'].forEach(e=>dropZone.addEventListener(e,ev=>{ev.preventDefault();ev.stopPropagation()}));
     ['dragenter','dragover'].forEach(e=>dropZone.addEventListener(e,()=>dropZone.classList.add('dragover')));
     ['dragleave','drop'].forEach(e=>dropZone.addEventListener(e,()=>dropZone.classList.remove('dragover')));
@@ -511,6 +512,11 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
       fileList.innerHTML='';
       fileCount.textContent=\`\${selectedFiles.length} file\${selectedFiles.length!==1?'s':''} selected\`;
       clearBtn.style.display=selectedFiles.length?'block':'none';
+      if(selectedFiles.length>0&&!filenameInput.dataset.manual){
+        filenameInput.value=selectedFiles[0].name.replace(/\.[^/.]+$/,'');
+      }else if(!selectedFiles.length&&!filenameInput.dataset.manual){
+        filenameInput.value='';
+      }
       selectedFiles.forEach((f,idx)=>{
         const li=document.createElement('li');
         li.draggable=true;
@@ -542,7 +548,7 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
         fileList.appendChild(li);
       });
     }
-    clearBtn.addEventListener('click',()=>{selectedFiles=[];fileInput.value='';renderList();summary.style.display='none'});
+    clearBtn.addEventListener('click',()=>{selectedFiles=[];fileInput.value='';delete filenameInput.dataset.manual;renderList();summary.style.display='none'});
     form.addEventListener('submit',async e=>{
       e.preventDefault();
       if(!selectedFiles.length){status.className='error';status.textContent='❌ Select at least one file.';status.style.display='block';return}

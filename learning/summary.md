@@ -9,3 +9,11 @@
   - Updated Telegram bot file handler to accept both `.json` and exported `.html` quiz files.
   - Initialized isolated project memory files in `learning/`.
   - Verified with comprehensive integration tests in Node.js.
+
+## 2026-09-22 - File Reordering Feature & Worker Redeployment
+- **Goal**: Add file reordering in the web UI before merging and redeploy Cloudflare Worker.
+- **Actions**:
+  - Added drag-and-drop (`⠿` handle) and individual Up (`↑`), Down (`↓`), and Remove (`✕`) buttons in `src/index.js` web UI.
+  - Maintained custom array order during `FormData` construction so files are sent and merged strictly in the user's rearranged order.
+  - Redeployed Cloudflare Worker `jsonmerge` via `wrangler deploy`.
+  - Committed and pushed changes to GitHub repository `master` branch.
